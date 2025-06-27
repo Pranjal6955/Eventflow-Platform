@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, select, update
+from sqlalchemy import create_engine, select, update, desc
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from typing import List, Dict, Any, Optional
@@ -24,6 +24,17 @@ class PostgreSQLRepository(DatabaseRepository):
             class_=AsyncSession, 
             expire_on_commit=False
         )
+        self.engine = create_engine(settings.POSTGRES_DSN)
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self._create_tables()
+    
+    def _create_tables(self):
+        """Create database tables"""
+        try:
+            Base.metadata.create_all(bind=self.engine)
+            logger.info("Database tables created successfully")
+        except Exception as e:
+            logger.error(f"Error creating database tables: {str(e)}")
     
     async def save_user_analytics_event(self, event_data: Dict[str, Any]) -> UUID:
         """Save user analytics event to database"""
@@ -166,3 +177,104 @@ class PostgreSQLRepository(DatabaseRepository):
                 await session.rollback()
                 logger.error(f"Error updating event processing status: {str(e)}")
                 raise
+    
+    async def store_user_analytics_event(self, event_data: Dict[str, Any]) -> str:
+        """Store user analytics event"""
+        session = self.SessionLocal()
+        try:
+            event = UserAnalyticsEvent(
+                user_id=event_data['user_id'],
+                event_type=event_data['event_type'],
+                page_url=event_data.get('page_url'),
+                user_agent=event_data.get('user_agent'),
+                session_id=event_data.get('session_id'),
+                timestamp=datetime.fromisoformat(event_data['timestamp'].replace('Z', '+00:00')),
+                event_metadata=event_data.get('metadata', {})
+            )
+            session.add(event)
+            session.commit()
+            logger.info(f"Stored user analytics event: {event.id}")
+            return event.id
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error storing user analytics event: {str(e)}")
+            raise
+        finally:
+            session.close()
+    
+    async def store_chemical_research_event(self, event_data: Dict[str, Any]) -> str:
+        """Store chemical research event"""
+        session = self.SessionLocal()
+        try:
+            event = ChemicalResearchEvent(
+                molecule_id=event_data['molecule_id'],
+                researcher=event_data['researcher'],
+                experiment_type=event_data['experiment_type'],
+                properties=event_data.get('properties', {}),
+                results=event_data.get('results', {}),
+                timestamp=datetime.fromisoformat(event_data['timestamp'].replace('Z', '+00:00')),
+                event_metadata=event_data.get('metadata', {})
+            )
+            session.add(event)
+            session.commit()
+            logger.info(f"Stored chemical research event: {event.id}")
+            return event.id
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error storing chemical research event: {str(e)}")
+            raise
+        finally:
+            session.close()
+    
+    async def get_user_analytics_events(self, user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get user analytics events"""
+        session = self.SessionLocal()
+        try:
+            events = session.query(UserAnalyticsEvent)\
+                           .filter(UserAnalyticsEvent.user_id == user_id)\
+                           .order_by(desc(UserAnalyticsEvent.timestamp))\
+                           .limit(limit)\
+                           .all()
+            
+            return [
+                {
+                    'id': event.id,
+                    'event_type': event.event_type,
+                    'page_url': event.page_url,
+                    'timestamp': event.timestamp.isoformat(),
+                    'metadata': event.event_metadata
+                }
+                for event in events
+            ]
+        except Exception as e:
+            logger.error(f"Error retrieving user analytics events: {str(e)}")
+            raise
+        finally:
+            session.close()
+    
+    async def get_chemical_research_events(self, researcher: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get chemical research events"""
+        session = self.SessionLocal()
+        try:
+            events = session.query(ChemicalResearchEvent)\
+                           .filter(ChemicalResearchEvent.researcher == researcher)\
+                           .order_by(desc(ChemicalResearchEvent.timestamp))\
+                           .limit(limit)\
+                           .all()
+            
+            return [
+                {
+                    'id': event.id,
+                    'molecule_id': event.molecule_id,
+                    'experiment_type': event.experiment_type,
+                    'timestamp': event.timestamp.isoformat(),
+                    'properties': event.properties,
+                    'results': event.results
+                }
+                for event in events
+            ]
+        except Exception as e:
+            logger.error(f"Error retrieving chemical research events: {str(e)}")
+            raise
+        finally:
+            session.close()

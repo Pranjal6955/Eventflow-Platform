@@ -1,5 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
+import logging
+import asyncio
+
+logger = logging.getLogger(__name__)
 
 class LLMService(ABC):
     """Abstract base class for LLM service integration"""
@@ -9,64 +13,42 @@ class LLMService(ABC):
         """Extract chemical properties using LLM"""
         pass
 
-class MockLLMService(LLMService):
-    """Mock LLM service for demonstration purposes"""
+class MockLLMService:
+    """Mock LLM service for testing purposes"""
     
-    async def extract_chemical_properties(self, chemical_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Mock implementation that returns dummy chemical properties"""
-        formula = chemical_data.get("formula", "Unknown")
+    async def analyze_user_behavior(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Mock user behavior analysis"""
+        await asyncio.sleep(0.1)  # Simulate processing time
         
-        # Mock properties based on common chemicals
-        mock_properties = {
-            "H2O": {
-                "color": "colorless",
-                "ph": 7.0,
-                "boiling_point": "100°C",
-                "melting_point": "0°C",
-                "density": "1.0 g/cm³",
-                "solubility": "miscible with water",
-                "toxicity": "non-toxic"
-            },
-            "NaCl": {
-                "color": "white",
-                "ph": 7.0,
-                "boiling_point": "1465°C",
-                "melting_point": "801°C",
-                "density": "2.17 g/cm³",
-                "solubility": "36 g/100mL water",
-                "toxicity": "low toxicity"
-            },
-            "CO2": {
-                "color": "colorless",
-                "ph": 5.6,
-                "boiling_point": "-78.5°C",
-                "melting_point": "-78.5°C",
-                "density": "1.98 g/L",
-                "solubility": "1.7 g/L water",
-                "toxicity": "asphyxiant in high concentrations"
-            }
+        return {
+            'analysis': 'Mock user behavior analysis',
+            'insights': [
+                'User is actively browsing',
+                'High engagement detected'
+            ],
+            'recommendations': [
+                'Show related content',
+                'Optimize page load time'
+            ]
         }
+    
+    async def analyze_chemical_properties(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Mock chemical properties analysis"""
+        await asyncio.sleep(0.1)  # Simulate processing time
         
-        # Return mock properties or default values
-        properties = mock_properties.get(formula, {
-            "color": "unknown",
-            "ph": None,
-            "boiling_point": "unknown",
-            "melting_point": "unknown",
-            "density": "unknown",
-            "solubility": "unknown",
-            "toxicity": "unknown"
-        })
-        
-        # Add analysis metadata
-        properties.update({
-            "analysis_timestamp": "2024-01-01T12:00:00Z",
-            "confidence_score": 0.95,
-            "model_version": "mock-llm-v1.0",
-            "extracted_from": chemical_data
-        })
-        
-        return properties
+        return {
+            'analysis': 'Mock chemical properties analysis',
+            'predicted_properties': {
+                'molecular_weight': 180.16,
+                'boiling_point': 178.0,
+                'solubility': 'high'
+            },
+            'safety_assessment': 'Generally safe under normal conditions',
+            'research_suggestions': [
+                'Test under different pH conditions',
+                'Evaluate thermal stability'
+            ]
+        }
 
 class HTTPLLMService(LLMService):
     """HTTP-based LLM service implementation"""
@@ -78,9 +60,6 @@ class HTTPLLMService(LLMService):
     async def extract_chemical_properties(self, chemical_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract chemical properties using external LLM API"""
         import httpx
-        import logging
-        
-        logger = logging.getLogger(__name__)
         
         try:
             headers = {"Content-Type": "application/json"}

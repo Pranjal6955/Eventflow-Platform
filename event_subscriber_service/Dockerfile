@@ -32,11 +32,10 @@ COPY app/ ./app/
 # Copy supervisor configuration
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser \
-    && chown -R appuser:appuser /app \
-    && mkdir -p /var/log/supervisor \
-    && chown -R appuser:appuser /var/log/supervisor
+# Create directories and set permissions
+RUN mkdir -p /var/log/supervisor /var/run \
+    && groupadd -r appuser && useradd -r -g appuser appuser \
+    && chown -R appuser:appuser /app /var/log/supervisor /var/run
 
 USER appuser
 

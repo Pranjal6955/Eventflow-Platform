@@ -10,11 +10,28 @@ if [ ! -d "venv" ]; then
 fi
 
 # Activate virtual environment
+echo "Activating virtual environment..."
 source venv/bin/activate
+
+# Verify activation
+if [ -z "$VIRTUAL_ENV" ]; then
+    echo "Error: Failed to activate virtual environment"
+    exit 1
+fi
+
+echo "Virtual environment activated: $VIRTUAL_ENV"
 
 # Install/upgrade dependencies
 echo "Installing dependencies..."
+pip install --upgrade pip
 pip install -r requirements.txt
+
+# Verify key packages are installed
+python -c "import fastapi; import celery; import confluent_kafka; print('All key packages installed successfully')" 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to install required packages"
+    exit 1
+fi
 
 # Check if infrastructure is available
 echo "Checking infrastructure connectivity..."
@@ -50,7 +67,7 @@ echo ""
 # Function to start Celery worker
 start_celery_worker() {
     echo "Starting Celery worker..."
-    celery -A app.api_worker.handlers:app worker --loglevel=info &
+    celery -A app.api_worker.handlers:app worker --loglevel=info --concurrency=2 &
     CELERY_PID=$!
     echo "Celery worker started with PID: $CELERY_PID"
 }
@@ -66,7 +83,7 @@ start_kafka_consumer() {
 # Function to start monitoring API
 start_monitoring_api() {
     echo "Starting monitoring API on port 8001..."
-    python -m app.main &
+    uvicorn app.main:app --host 0.0.0.0 --port 8001 --workers 1 &
     API_PID=$!
     echo "Monitoring API started with PID: $API_PID"
 }
